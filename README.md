@@ -1,206 +1,107 @@
-# react-typescript-mobx-express-template
+# React, TypeScript, Express, and Prisma starter
 
-## How to start:
-coming soon
+The frontend and backend are TypeScript. Vite serves the React development app, Express provides the API and production static files, and Prisma manages the MySQL schema and client.
 
-## Recipe used to create this repo:
+## Requirements
 
-#### Create app and install dependencies
-```shell 
-npx create-react-app name-of-app --template typescript
+- Node.js 22.12 or later
+- Docker Compose
+
+## Quick start
+
+1. Create your local environment file and start the development database:
+
+```sh
+cp .env.example .env
+docker compose -f compose.dev.yaml up -d --wait
 ```
 
-```shell
-cd name-of-app && npm install react-router-dom mobx mobx-react
-```
-```shell 
-code .
-```
+2. Install dependencies and apply the starter migration:
 
-<!-- **tsconfig.json**
-```json
-// Add to compilerOptions
-"experimentalDecorators": true,
-"useDefineForClassFields": true,
-``` -->
-
-#### Create app directories and core files
-```shell
-mkdir src/app src/theme src/components src/hooks src/state src/state/store src/components/Home
+```sh
+npm ci
+npm run db:migrate:dev
 ```
 
-```shell
-mv ./src/App* ./src/app
-```
-```shell
-touch src/theme/theme.ts src/components/Home/Home.tsx src/components/Home/Home.test.tsx src/state/store/AuthStore.ts src/state/context.ts
-```
-```shell
-rm src/index.css src/app/App.css
+3. Start the Express server and Vite frontend in separate terminals:
 
-#Placeholders
-echo "export {}" >> src/components/Home/Home.test.tsx
-echo "export {}" >> src/theme/theme.tsx
+```sh
+npm run dev:server
 ```
 
-
-#### Alter files
-
-**File: src/index.js**
-```tsx
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './app/App';
-import reportWebVitals from './reportWebVitals';
-import { BrowserRouter  as Router } from 'react-router-dom';
-
-
-const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
-);
-
-root.render(
-  <React.StrictMode>
-    <Router>
-      <App />
-    </Router>
-  </React.StrictMode>
-);
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+```sh
+npm run dev:client
 ```
 
-**File: src/app/App.tsx**
-```tsx
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import Home from '../components/Home/Home';
+Open [http://localhost:5173](http://localhost:5173). Vite proxies `/api` requests to Express on port 5000. You can check the server and database connection at [http://localhost:5000/api/health](http://localhost:5000/api/health).
 
+## Development workflow
 
+### Database models and migrations
 
-const App : React.FC = () => {
-  return (<>
-      <Routes>
-        <Route path="/" element={<Home />}/>
-      </Routes>
-      </>
-  );
-}
+The starter includes a sample `User` model in `prisma/schema.prisma`. Add or edit models there, then create and apply a named migration:
 
-export default App;
+```sh
+npm run db:migrate:dev -- --name add-example-model
 ```
 
-**File: src/components/Home/Home.tsx**
-```tsx
-import React, { useContext } from 'react';
-import { observer } from 'mobx-react';
-import { StoreContext, IStoreContext } from '../../state/context';
+Prisma Migrate updates the development database and generates the Prisma client. Commit both the schema change and the new migration under `prisma/migrations/`. Use `npm run db:studio` to inspect and edit development data with Prisma Studio.
 
-const Home: React.FC = () => {
-    const { authStore }  = useContext<IStoreContext>(StoreContext);
-    const authenticated = authStore.isAuthenticated();
-  
-    const handleClick = () => {
-        authStore.toggleAuthentication();
-    }
-    
-    return <div style={{marginBottom:"20px"}}>
-            { authenticated && <div>Logged in</div>}
-            <button
-                onClick={handleClick}
-            >{authenticated ? "Log Out": "Login"}</button>
-        </div>;
-};
+`DATABASE_URL` configures the app and Prisma. `SHADOW_DATABASE_URL` points to a separate schema used by Prisma Migrate during development. The Compose setup creates the local shadow schema when MySQL initializes. If you change the development MySQL credentials or database names, update `.env` to keep the Compose settings and connection URLs in sync. URL-encode special characters in usernames and passwords in database URLs.
 
-export default observer(Home);
+MySQL data is stored in a named Docker volume. Stop the database with:
+
+```sh
+docker compose -f compose.dev.yaml down
 ```
 
-**File src/state/context.ts**
-```ts
-import React from "react";
-import { AuthStore } from "./stores/AuthStore";
+Adding `-v` deletes the local database volume and its data.
 
-export interface IStoreContext {
-  authStore: AuthStore;
-}
+### Tests and checks
 
-const authStore = new AuthStore();
+Run the frontend component tests and Express HTTP route tests:
 
-export const StoreContext = React.createContext<IStoreContext>({
-  authStore,
-})
+```sh
+npm test
 ```
 
-**File src/state/store/AuthStore.ts**
-```ts
-import { makeAutoObservable } from 'mobx';
+The Express tests use mocked database health checks and do not require MySQL. Use `npm run test:watch` while developing tests. Before submitting changes, run the TypeScript checks and production build:
 
-
-export class AuthStore {
-    private authenticated : boolean = false;
-
-    constructor(){
-        makeAutoObservable(this);
-    }
-
-    isAuthenticated(){
-        return this.authenticated;
-    }
-
-    toggleAuthentication(){
-        this.authenticated = !this.authenticated;
-    }
-}
+```sh
+npm run typecheck
+npm run build
 ```
 
-#### Install Express
-```shell
-npm install express dotenv axios
-```
-```shell
-npm install nodemon --save-dev
-```
+The server and client are both TypeScript. Keep the Prisma schema and migrations up to date when changing database models.
 
-#### Create Server file structure
-```shell
-mkdir server server/modules server/routes server/constants
-touch server/server.js
-```
-##### Add Boiler plate server code server/server.js
-```js
-/** ---------- SYSTEM ---------- **/
-require('dotenv').config();
-const express = require('express');
-const app = express();
-const SITE_URL = process.env.SITE_URL || ' http://localhost';
-const PORT = process.env.PORT || 5000;
+`.env.example` contains development-only credentials; never use them in production.
 
-/** ---------- MIDDLEWARE ---------- **/
-app.use(express.json());
-app.use(express.urlencoded({extended: true}));
-app.use(express.static('build'));
+### Logging and troubleshooting
 
-/** ---------- EXPRESS ROUTES ---------- **/
+The server uses [pino](https://getpino.io). In development logs are pretty-printed; in production (`NODE_ENV=production`) they are JSON lines on stdout, readable with `docker compose logs app`.
 
-/** ---------- START SERVER ---------- **/
-app.listen(PORT, () => {
-    console.log(`Server is Active - ${SITE_URL}:${PORT}`);
-});
+- `LOG_LEVEL` sets verbosity (`fatal`, `error`, `warn`, `info`, `debug`, `trace`; default `info` in production, `debug` in development).
+- Every `/api` request is logged with its method, URL, status code and `responseTime` (ms). Status 5xx logs at `error`, 4xx at `warn`. Successful health checks and static assets are not logged.
+- Each response has an `x-request-id` header (an incoming `x-request-id` is reused). Error responses include `requestId`, so a user-reported ID can be searched in the logs.
+- Requests slower than one second log a `Slow request` warning. Database queries slower than `SLOW_QUERY_MS` (default 500) log a `Slow database query` warning; at `debug` level all queries are logged with their duration. Query parameters are never logged.
+- Errors are logged with stack traces, including unhandled request errors, unhandled promise rejections and uncaught exceptions. `authorization` and `cookie` headers are never logged.
 
+Use `request.log` inside route handlers to log with the request ID attached, for example `request.log.info({ userId }, 'User created')`. Pass errors as `{ err }` so the stack is serialized. Avoid logging passwords, tokens or other personal data.
+
+## Production
+
+The production Compose service does not start a database. Set `DATABASE_URL` to the network-hosted MySQL address and credentials, then build and start the app:
+
+```sh
+docker compose up --build
 ```
 
-##### Add to package.json
-```json
-"proxy": "http://localhost:8081",
-"scripts": {
-    "start": "node server/server.js",
-    "build": "react-scripts build",
-    "client": "react-scripts start",
-    "server": "nodemon  --watch server server/server.js",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
-  },
+The database host must be reachable from the app container. Keep production credentials outside source control. For app connections that require TLS, set `DATABASE_SSL=true`; provide a trusted CA certificate in `DATABASE_SSL_CA` when needed. When running Prisma migrations against a TLS-protected database, configure Prisma's MySQL TLS URL options in `DATABASE_URL` and make any referenced certificate file available to the migration process.
+
+Before releasing an application version that includes new migrations, apply the committed migrations to the deployment database from a trusted environment with database access:
+
+```sh
+npm run db:migrate:deploy
 ```
+
+Do not run production migrations automatically when the app starts.
