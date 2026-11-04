@@ -57,6 +57,8 @@ docker compose -f compose.dev.yaml down
 
 Adding `-v` deletes the local database volume and its data.
 
+`compose.dev.yaml` starts MySQL and the built app container. The container is served at [http://localhost:8080](http://localhost:8080) (set `APP_PORT` to change it), so it does not conflict with the dev server on port 5000. The container does not apply migrations; run `npm run db:migrate:dev` first. To start only the database, run `docker compose -f compose.dev.yaml up -d --wait mysql`.
+
 ### Tests and checks
 
 Run the frontend component tests and Express HTTP route tests:
