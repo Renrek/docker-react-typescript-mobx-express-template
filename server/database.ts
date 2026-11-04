@@ -29,6 +29,7 @@ const adapter = new PrismaMariaDb({
     password: decodeURIComponent(url.password),
     database,
     connectionLimit: 10,
+    allowPublicKeyRetrieval: process.env.DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL === 'true',
     ...(sslEnabled
         ? {
             ssl: {

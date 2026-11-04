@@ -27,6 +27,7 @@ services:
       PORT: "5000"
       DATABASE_URL: mysql://${DB_USER:-app}:${DB_PASSWORD:-app_dev_password}@mysql:3306/${DB_NAME:-app}
       DATABASE_SSL: "false"
+      DATABASE_ALLOW_PUBLIC_KEY_RETRIEVAL: "true"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SLOW_QUERY_MS: ${SLOW_QUERY_MS:-500}
     depends_on:
